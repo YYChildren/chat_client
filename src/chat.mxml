@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009"
+			   xmlns:s="library://ns.adobe.com/flex/spark"
+			   xmlns:mx="library://ns.adobe.com/flex/mx"
+			   width="1065" height="629" minWidth="955" minHeight="600"
+			   creationComplete="application1_creationCompleteHandler(event)"
+			   >
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.events.FlexEvent;
+			
+			import spark.events.IndexChangeEvent;
+			
+			private var service:ClientService;
+			private var connected:Boolean = false;
+			private var logined:Boolean = false;
+			private var socket:Socket=new Socket();
+			private var host:String;
+			private var port:int;
+		
+			protected function application1_creationCompleteHandler(event:FlexEvent):void
+			{
+				socket = new Socket();
+  				socket.addEventListener(Event.CONNECT, socket_connectHandler);
+				socket.addEventListener(ProgressEvent.SOCKET_DATA, onSocketData);
+				socket.addEventListener(IOErrorEvent.IO_ERROR, socket_ioErrorHandler);
+				socket.addEventListener(SecurityErrorEvent.SECURITY_ERROR, socketSecurityErrorHandler);
+				socket.addEventListener(Event.CLOSE, socket_closeHandler);
+
+			}
+			
+			protected function button_connect_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				
+				if( !connected){
+					
+					try
+					{
+						
+						//socket.addEventListener(ProgressEvent.SOCKET_DATA, onSocketData);
+						Security.loadPolicyFile("xmlsocket://" + host + ":" + port);
+						host = host_input.text;
+						port = parseInt (port_input.text);
+						socket.connect(host, port);
+						socket.flush();
+						chat_input.text = "连接成功";
+						//sendMsg("测试发送消息");
+						connect_btn.label = "断开连接";
+						connected = true;
+					}
+					catch (error:Error)  
+					{  
+						//outputInfo(error.message + "\n");  
+						socket.close();  
+						chat_input.text = "连接失败，请检查ip和端口是否正确";
+						
+						chat_input.appendText(" "+host + " " + port+" "+socket.connected);
+						chat_input.appendText(service.socket.toString());
+						
+						connect_btn.label = "连接";
+						connected = false;
+					}  
+
+				}else{
+					connect_btn.label = "连接";
+					chat_input.text = "连接已断开";
+					socket.close();
+					connected = false;
+				} 
+				chat_input.appendText("\t"+connected + "");
+				
+			}
+			
+			protected function button_login_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				var username:String = username_input.text;
+				var password:String = password_input.text;
+				sendMsg(username+" "+password);
+			}
+			
+			protected function button_sendData_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				var msg:String = your_input.text;
+				this.sendMsg(msg);
+				
+			}
+			
+			private function onSocketData(event:ProgressEvent):void 
+			{
+				while (socket.bytesAvailable) 
+				{
+					var s:String = socket.readUTFBytes(socket.bytesAvailable);
+					if (chat_input.text) s = "\n" + s;
+					chat_input.appendText(s);                        
+					stage.invalidate();
+				}
+			}
+			
+			private function sendMsg(Msg:String):void
+			{
+				socket.writeUTFBytes(Msg);
+				socket.flush();                
+			}
+			
+			private function socket_connectHandler():void{
+				
+			}
+		
+			private function socket_ioErrorHandler():void{}
+			
+			private function socketSecurityErrorHandler():void{}
+			
+			private function socket_closeHandler():void{}
+			
+			protected function frequency_input_changeHandler(event:IndexChangeEvent):void
+			{
+				// TODO Auto-generated method stub
+				
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+		
+	</fx:Declarations>
+	<s:Panel x="55" y="18" width="955" height="600" title="Let's chat！">
+		<s:Label x="10" y="10" height="25" fontSize="17" text="服务器IP："/>
+		<s:TextInput id="host_input" x="90" y="10" width="152" text="192.168.15.139"/>
+		<s:Label x="266" y="10" height="25" fontSize="17" text="服务器端口："/>
+		<s:TextInput id="port_input" x="363" y="12" width="152" text="8080"/>
+		<s:Button x="523" y="12" label="连接" click="button_connect_clickHandler(event)" id="connect_btn"/>
+		
+		<s:Label x="10" y="42" height="25" fontSize="17" text="用户名："/>
+		<s:TextInput id="username_input" x="90" y="45" width="152" text="123"/>
+		<s:Label x="266" y="42" height="25" fontSize="17" text="密码："/>
+		<s:TextInput id="password_input" x="363" y="41" width="152" text="123"/>
+		<s:Button x="523" y="42" label="登录/注册" click="button_login_clickHandler(event)"/>
+		
+		
+		<s:TextArea x="0" y="71" width="954" height="387" contentBackgroundColor="#FDFCD5" id="chat_input"/>
+
+		
+		<s:Label x="26" y="485" height="25" fontSize="17" text="选择频道："/>
+		<s:ComboBox id="frequency_input" x="115" y="485"
+					change="frequency_input_changeHandler(event)">
+			<s:dataProvider>
+				<mx:ArrayList>
+					<fx:String>world</fx:String>
+					<fx:String>country1</fx:String>
+					<fx:String>country2</fx:String>
+					<fx:String>country3</fx:String>
+				</mx:ArrayList>
+			</s:dataProvider>
+		</s:ComboBox>
+
+		
+		
+		<s:Label x="26" y="518" height="25" fontSize="17" text="对话："/>
+		<s:TextInput id="your_input" x="85" y="518" width="765" text="c3dpdGNocountry"/>
+		<s:Button x="863" y="519" label="发送" click="button_sendData_clickHandler(event)"/>
+		
+	</s:Panel>
+</s:Application>

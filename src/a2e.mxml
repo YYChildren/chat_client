@@ -1,0 +1,279 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx"
+			   backgroundColor="#EDFCFB"
+			   creationComplete="application1_creationCompleteHandler(event)"
+			   >
+	
+	<fx:Script>
+		<![CDATA[
+			//Author: zengfeng75@163.com
+			//Created: 2011-5-5
+			import mx.collections.ArrayCollection;
+			import mx.events.FlexEvent;
+			
+			private var socket:Socket;
+			public var host:String;
+			public var port:int;
+			public var rowNum:uint = 0;
+			public var sendSocketTimer:Timer = new Timer(5);
+			public var showInfoTimer:Timer = new Timer(50);
+			public var autoClearTimer:Timer = new Timer(2000);
+			public var msg:String = "----hello,我是as3----";
+			public var infoArr:Array = new Array();
+			public var isAutoClearMsg:Boolean = false;
+			
+			
+			protected function connectButton_clickHandler(event:MouseEvent):void
+			{
+				host = hostTextInput.text;
+				port = parseInt(portTextInput.text);
+				Security.loadPolicyFile("xmlsocket://" + host + ":" + port);
+				connect(host, port);                                
+			}
+			
+			private function connect(host:String, port:int):void
+			{
+				try
+				{
+					socket.connect(host, port);
+				}
+				catch (error:Error)  
+				{  
+					outputInfo(error.message + "\n");  
+					socket.close();  
+				}  
+			}
+			
+			private function socket_connectHandler(event:Event):void
+			{
+				outputInfo("socket 连接成功");
+				outputInfo("Host: " + hostTextInput.text);
+				outputInfo("Port: " + portTextInput.text);
+			}
+			
+			private function socket_socketDataHandler(event:ProgressEvent):void
+			{
+				outputInfo("收到数据: ");
+				try{
+					var str:String = socket.readUTFBytes(socket.bytesAvailable);
+					str += "\n";
+					outputInfo(str);
+				}
+				catch(error:Error)
+				{
+					outputInfo("读取数据时出错:" + error.message + "\n"); 
+				}
+				
+			}
+			
+			private function socket_ioErrorHandler(event:IOErrorEvent):void
+			{
+				outputInfo("\n-------------\n");
+				outputInfo("[出错]\n");
+				outputInfo(event + "\n");                                
+				outputInfo("-------------\n\n");
+			}
+			
+			private function socketSecurityErrorHandler(event:SecurityErrorEvent):void
+			{
+				outputInfo("\n-------------\n");
+				outputInfo("[出安全错误]\n");
+				outputInfo(event + "\n");                                
+				outputInfo("-------------\n\n");
+			}
+			
+			private function socket_closeHandler(event:Event):void
+			{
+				outputInfo("\n-------------\n");
+				outputInfo("[关闭]\n");
+				outputInfo(event + "\n");                                
+				outputInfo("-------------\n\n");
+			}
+			
+			public function outputInfo(text:Object):void
+			{
+				infoArr.push(text);
+			}
+			
+			protected function application1_creationCompleteHandler(event:FlexEvent):void
+			{
+				socket = new Socket();
+				socket.addEventListener(Event.CONNECT, socket_connectHandler);
+				socket.addEventListener(ProgressEvent.SOCKET_DATA, socket_socketDataHandler);
+				socket.addEventListener(IOErrorEvent.IO_ERROR, socket_ioErrorHandler);
+				socket.addEventListener(SecurityErrorEvent.SECURITY_ERROR, socketSecurityErrorHandler);
+				socket.addEventListener(Event.CLOSE, socket_closeHandler);
+				
+				sendSocketTimer.addEventListener(TimerEvent.TIMER, sendSocketTimer_timerHandler);
+				sendSocketTimer.addEventListener(TimerEvent.TIMER_COMPLETE, sendSocketTimer_timerCompleteHandler);
+				showInfoTimer.addEventListener(TimerEvent.TIMER, showInfoTimer_timerHandler);
+				autoClearTimer.addEventListener(TimerEvent.TIMER, autoClearTimer_timerHandler);
+				showInfoTimer.start();
+				autoClearTimer.start();
+			}
+			
+			
+			protected function autoClearTimer_timerHandler(event:TimerEvent):void
+			{
+				if(isAutoClearMsg == true && reveciveTextArea.text.length > 2000)
+				{
+					reveciveTextArea.text = "";
+				}
+				
+			}
+			
+			protected function showInfoTimer_timerHandler(event:TimerEvent):void
+			{
+				
+				if(infoArr.length <= 0)
+				{
+					return;
+				}
+				
+				var str:String = infoArr.join("\n");
+				infoArr = new Array();
+				reveciveTextArea.appendText(str);
+			}
+			
+			protected function sendSocketTimer_timerHandler(event:TimerEvent):void
+			{
+				if(rowNum <= 0)
+				{
+					sendSocketTimer.stop();
+					outputInfo("发送完成");
+					return;
+				}
+				send(msg + "---倒数第" +  rowNum.toString() + "次");
+				rowNum--;                                
+				
+			}
+			
+			protected function sendSocketTimer_timerCompleteHandler(event:TimerEvent):void
+			{
+				outputInfo("发送完成");
+			}
+			
+			
+			protected function sendButton_clickHandler(event:MouseEvent):void
+			{
+				send(inputTextArea.text);
+				inputTextArea.text = "";
+			}
+			
+			protected function send(msg:String):void
+			{
+				if(socket.connected == false)
+				{
+					outputInfo("提示:请先连接!\n");
+					return;
+				}
+				var bytes:ByteArray = new ByteArray();
+				bytes.writeUTFBytes(msg + "\n");
+				socket.writeBytes(bytes);
+				socket.flush(); 
+			}
+			
+			
+			protected function SendNumRowButton_clickHandler(event:MouseEvent):void
+			{
+				if(sendSocketTimer.running)
+				{
+					outputInfo("请稍后,正在发送中...");
+				}
+				else
+				{
+					if(inputTextArea.text != "")
+					{
+						msg = inputTextArea.text;
+					}
+					rowNum = parseInt(numRowTextInput.text);
+					outputInfo("开始发送，设定" + rowNum + "次!");
+					
+					//发送方式
+					if(isTimerSend.selected)
+					{
+						//按时间间隔
+						sendSocketTimer.start();
+					}
+					else
+					{
+						//循环
+						for(var i:int = 0; i<rowNum; i++)
+						{
+							send(msg + "---第" +  i.toString() + "次");
+						}
+					}
+					
+					
+				}
+			}
+			
+			
+			protected function StopNumRowButton_clickHandler(event:MouseEvent):void
+			{
+				sendSocketTimer.stop();
+				if(rowNum <= 0)
+				{
+					outputInfo("发送完成!");
+				}
+				else
+				{
+					outputInfo("停止发送!还剩余" + rowNum + "次!");
+				}
+				
+			}
+			
+			protected function clearMsgButton_clickHandler(event:MouseEvent):void
+			{
+				reveciveTextArea.text = "";
+			}
+			
+			protected function autoClearMsgCheckBox_changeHandler(event:Event):void
+			{
+				isAutoClearMsg = autoClearMsgCheckBox.selected;
+			}
+			
+		]]>
+	</fx:Script>
+	
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	
+	<s:BorderContainer top="20" horizontalCenter="-300"  backgroundColor="#C6D3D2" borderColor="#8B9493" cornerRadius="5" height="57" width="488">
+		<s:HGroup verticalCenter="0" horizontalCenter="0">                        
+			<s:Label text="Host:" paddingTop="5" />
+			<s:TextInput id="hostTextInput" text="192.168.116.5" />
+			<s:Label text="Port:" paddingTop="5" paddingLeft="50" />
+			<s:TextInput id="portTextInput" text="8081" />
+			<s:Button id="connectButton" label="Connect" click="connectButton_clickHandler(event)" />
+		</s:HGroup>
+	</s:BorderContainer>
+	
+	<s:BorderContainer horizontalCenter="0" top="100" backgroundColor="#C6D3D2" borderColor="#8B9493" cornerRadius="5" width="90%" bottom="80">
+		<s:Group left="10" right="10" top="10" bottom="10">
+			<s:Label text="接收" left="0" top="0" />
+			<s:CheckBox id="autoClearMsgCheckBox" label="自动清理" right="100" top="-5" change="autoClearMsgCheckBox_changeHandler(event)" />
+			<s:Button id="clearMsgButton" label="清理数据" right="0" top="-5" click="clearMsgButton_clickHandler(event)" />
+			<s:TextArea id="reveciveTextArea" top="20" bottom="75" left="0" right="0" />
+			<s:Label text="输入" left="0" bottom="55" />
+			<s:TextArea id="inputTextArea" height="50"  bottom="0" right="55" left="0"/>
+			<s:Button id="sendButton" label="发送" width="50" height="50" right="0" bottom="0" click="sendButton_clickHandler(event)"/>
+		</s:Group>
+	</s:BorderContainer>
+	
+	<s:BorderContainer horizontalCenter="250" top="20" backgroundColor="#C6D3D2" borderColor="#8B9493" cornerRadius="5" width="480" height="57">
+		<s:HGroup verticalCenter="0" horizontalCenter="0">                        
+			<s:Label text="连续发送:" paddingTop="5" />
+			<s:TextInput id="numRowTextInput" text="100" />
+			<s:Button id="SendNumRowButton" label="开始" click="SendNumRowButton_clickHandler(event)" />
+			<s:Button id="StopNumRowButton" label="停止" click="StopNumRowButton_clickHandler(event)" />        
+			<s:CheckBox id="isTimerSend" label="按时间隔发送" />
+		</s:HGroup>
+	</s:BorderContainer>
+	
+	
+	
+</s:Application>
